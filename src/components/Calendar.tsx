@@ -264,12 +264,13 @@ export default function Calendar() {
 				})}
 			</div>
 
-			{/* 운동 기록 추가 모달 */}
+			{/* 운동 기록 관리 모달 */}
 			<WorkoutModal
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
 				selectedDate={selectedDate}
 				onWorkoutAdded={handleWorkoutAdded}
+				existingWorkouts={selectedDate ? getWorkoutsForDate(selectedDate) : []}
 			/>
 		</div>
 	)
