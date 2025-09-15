@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
+import type { Workout } from '@/lib/supabase'
 import WorkoutModal from './WorkoutModal'
 
 export default function Calendar() {
+	const { user } = useAuth()
 	const [currentDate, setCurrentDate] = useState(new Date())
 	const [isModalOpen, setIsModalOpen] = useState(false)
 	const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+	const [workouts, setWorkouts] = useState<Workout[]>([])
 
 	// 현재 월의 첫 번째 날과 마지막 날
 	const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
@@ -56,11 +61,41 @@ export default function Calendar() {
 		}
 	}
 
+	// 현재 월의 운동 기록 불러오기
+	const fetchWorkouts = async () => {
+		if (!user) return
+
+		try {
+			const { data, error } = await supabase
+				.from('workouts')
+				.select('*')
+				.eq('user_id', user.id)
+				.gte('workout_date', firstDayOfMonth.toISOString().split('T')[0])
+				.lte('workout_date', lastDayOfMonth.toISOString().split('T')[0])
+				.order('workout_date', { ascending: true })
+
+			if (error) throw error
+			setWorkouts(data || [])
+		} catch (error) {
+			console.error('운동 기록 불러오기 실패:', error)
+		}
+	}
+
+	// 특정 날짜에 운동 기록이 있는지 확인
+	const getWorkoutsForDate = (date: Date) => {
+		const dateString = date.toISOString().split('T')[0]
+		return workouts.filter(workout => workout.workout_date === dateString)
+	}
+
 	// 운동 기록 추가 완료 후 호출
 	const handleWorkoutAdded = () => {
-		// 추후 운동 기록 목록을 새로고침하는 로직 추가
-		console.log('운동 기록이 추가되었습니다!')
+		fetchWorkouts() // 운동 기록 새로고침
 	}
+
+	// 월이 변경되거나 사용자가 로그인할 때 운동 기록 불러오기
+	useEffect(() => {
+		fetchWorkouts()
+	}, [user, currentDate])
 
 	return (
 		<div className="bg-white shadow rounded-lg p-6">
@@ -103,25 +138,65 @@ export default function Calendar() {
 
 			{/* 달력 날짜들 */}
 			<div className="grid grid-cols-7 gap-1">
-				{calendarDays.map((date, index) => (
-					<div
-						key={index}
-						onClick={() => handleDateClick(date)}
-						className={`
-							p-2 h-10 flex items-center justify-center text-sm cursor-pointer rounded-md
-							${isCurrentMonth(date)
-								? 'text-gray-900 hover:bg-blue-50'
-								: 'text-gray-400 cursor-not-allowed'
-							}
-							${isToday(date)
-								? 'bg-blue-600 text-white hover:bg-blue-700'
-								: ''
-							}
-						`}
-					>
-						{date.getDate()}
-					</div>
-				))}
+				{calendarDays.map((date, index) => {
+					const dayWorkouts = getWorkoutsForDate(date)
+					const hasWorkouts = dayWorkouts.length > 0
+
+					return (
+						<div
+							key={index}
+							onClick={() => handleDateClick(date)}
+							className={`
+								p-1 h-16 flex flex-col items-center justify-start text-sm cursor-pointer rounded-md relative
+								${isCurrentMonth(date)
+									? 'text-gray-900 hover:bg-blue-50'
+									: 'text-gray-400 cursor-not-allowed'
+								}
+								${isToday(date)
+									? 'bg-blue-600 text-white hover:bg-blue-700'
+									: ''
+								}
+								${hasWorkouts && !isToday(date)
+									? 'bg-green-50 border border-green-200'
+									: ''
+								}
+							`}
+						>
+							<span className="font-medium mb-1">{date.getDate()}</span>
+
+							{/* 운동 기록 표시 */}
+							{hasWorkouts && (
+								<div className="flex flex-wrap gap-1 text-xs">
+									{dayWorkouts.slice(0, 2).map((workout, idx) => (
+										<span
+											key={idx}
+											className={`
+												px-1 py-0.5 rounded text-xs font-medium
+												${isToday(date)
+													? 'bg-white/20 text-white'
+													: 'bg-green-100 text-green-800'
+												}
+											`}
+										>
+											{workout.workout_type.slice(0, 2)}
+										</span>
+									))}
+									{dayWorkouts.length > 2 && (
+										<span className={`
+											px-1 py-0.5 rounded text-xs
+											${isToday(date)
+												? 'bg-white/20 text-white'
+												: 'bg-gray-100 text-gray-600'
+											}
+										`}>
+											+{dayWorkouts.length - 2}
+										</span>
+									)}
+								</div>
+							)}
+						</div>
+					)
+				})}
 			</div>
 
 			{/* 운동 기록 추가 모달 */}

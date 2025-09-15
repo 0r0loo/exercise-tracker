@@ -20,18 +20,7 @@ export default function WorkoutModal({
   const [workoutType, setWorkoutType] = useState("");
   const [notes, setNotes] = useState("");
 
-  const workoutTypes = [
-    "헬스",
-    "수영",
-    "요가",
-    "러닝",
-    "사이클링",
-    "필라테스",
-    "테니스",
-    "농구",
-    "축구",
-    "기타",
-  ];
+  const workoutTypes = ["주짓수", "헬스", "러닝", "사이클링", "기타"];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
