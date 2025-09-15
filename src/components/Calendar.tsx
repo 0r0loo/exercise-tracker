@@ -182,7 +182,7 @@ export default function Calendar() {
 							key={index}
 							onClick={() => handleDateClick(date)}
 							className={`
-								p-1 h-20 flex flex-col items-center justify-start text-sm cursor-pointer rounded-md relative
+								p-2 min-h-32 flex flex-col items-start justify-start text-sm cursor-pointer rounded-md relative
 								${isCurrentMonth(date)
 									? 'text-gray-900 hover:bg-blue-50'
 									: 'text-gray-400 cursor-not-allowed'
@@ -207,34 +207,48 @@ export default function Calendar() {
 						>
 							<span className="font-medium mb-1">{date.getDate()}</span>
 
-							<div className="flex flex-col gap-1 text-xs w-full">
+							<div className="flex flex-col gap-0.5 text-xs w-full">
 								{/* 운동 기록 표시 */}
 								{hasWorkouts && (
-									<div className="flex flex-wrap gap-1">
-										{dayWorkouts.slice(0, 2).map((workout, idx) => (
-											<span
+									<div className="flex flex-col gap-0.5">
+										{dayWorkouts.slice(0, 4).map((workout, idx) => (
+											<div
 												key={idx}
 												className={`
-													px-1 py-0.5 rounded text-xs font-medium
+													px-1.5 py-0.5 rounded text-xs
 													${isToday(date)
 														? 'bg-white/20 text-white'
 														: 'bg-green-100 text-green-800'
 													}
+													overflow-hidden
 												`}
 											>
-												{workout.workout_type.slice(0, 2)}
-											</span>
+												<div className="font-medium truncate">
+													{workout.workout_type}
+												</div>
+												{workout.notes && (
+													<div className={`
+														text-xs mt-0.5 truncate
+														${isToday(date)
+															? 'text-white/80'
+															: 'text-green-600'
+														}
+													`}>
+														{workout.notes}
+													</div>
+												)}
+											</div>
 										))}
-										{dayWorkouts.length > 2 && (
-											<span className={`
-												px-1 py-0.5 rounded text-xs
+										{dayWorkouts.length > 4 && (
+											<div className={`
+												px-1.5 py-0.5 rounded text-xs font-medium text-center
 												${isToday(date)
 													? 'bg-white/20 text-white'
 													: 'bg-gray-100 text-gray-600'
 												}
 											`}>
-												+{dayWorkouts.length - 2}
-											</span>
+												+{dayWorkouts.length - 4}개 더
+											</div>
 										)}
 									</div>
 								)}
