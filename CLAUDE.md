@@ -62,3 +62,26 @@ src/
 - Demo files are prefixed with `demo` and can be safely removed
 - Dev tools panel positioned at bottom-left
 - Biome ignores generated `routeTree.gen.ts` file
+
+## Development Guidelines
+
+### Working Style
+- **한 번에 하나씩**: 작업을 작은 단위로 나누어 단계별로 진행
+- **점진적 개발**: 기능을 완전히 완성한 후 다음 기능으로 이동
+- **테스트 우선**: 각 단계마다 브라우저에서 동작 확인
+- **명확한 피드백**: 각 단계 완료 후 사용자 확인 요청
+
+### Supabase Integration
+- **Database**: PostgreSQL with Row Level Security (RLS)
+- **Authentication**: Built-in auth with `auth.users` table
+- **Environment**: Uses `.env.local` for configuration
+- **Client**: Configured in `src/lib/supabase.ts`
+
+### Current Features
+- ✅ Supabase setup and configuration
+- ✅ User authentication (signup/login/logout)
+- ✅ Database tables: `workouts`, `membership_payments`
+- ✅ Row Level Security policies
+- 🚧 Calendar UI component (in progress)
+- ⏳ Workout tracking features
+- ⏳ Membership payment management
