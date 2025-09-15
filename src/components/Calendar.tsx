@@ -115,15 +115,23 @@ export default function Calendar() {
 		}
 	}
 
+	// 날짜를 로컬 YYYY-MM-DD 형식으로 변환 (시간대 문제 해결)
+	const getLocalDateString = (date: Date) => {
+		const year = date.getFullYear()
+		const month = String(date.getMonth() + 1).padStart(2, '0')
+		const day = String(date.getDate()).padStart(2, '0')
+		return `${year}-${month}-${day}`
+	}
+
 	// 특정 날짜에 운동 기록이 있는지 확인
 	const getWorkoutsForDate = (date: Date) => {
-		const dateString = date.toISOString().split('T')[0]
+		const dateString = getLocalDateString(date)
 		return workouts.filter(workout => workout.workout_date === dateString)
 	}
 
 	// 특정 날짜에 회비 관련 정보가 있는지 확인 (결제일 또는 다음 결제 예정일)
 	const getPaymentsForDate = (date: Date) => {
-		const dateString = date.toISOString().split('T')[0]
+		const dateString = getLocalDateString(date)
 		return payments.filter(payment =>
 			payment.payment_date === dateString ||
 			payment.next_payment_date === dateString
@@ -273,7 +281,7 @@ export default function Calendar() {
 								{hasPayments && (
 									<div className="flex flex-col gap-0.5">
 										{dayPayments.map((payment, idx) => {
-											const dateString = date.toISOString().split('T')[0]
+											const dateString = getLocalDateString(date)
 											const isPaid = payment.payment_date === dateString
 											const isDue = payment.next_payment_date === dateString
 
