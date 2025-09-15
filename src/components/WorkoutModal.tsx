@@ -89,14 +89,10 @@ export default function WorkoutModal({
         if (error) throw error;
       } else {
         // 추가
-        const workoutDate = selectedDate.getFullYear() + '-' +
-                           String(selectedDate.getMonth() + 1).padStart(2, '0') + '-' +
-                           String(selectedDate.getDate()).padStart(2, '0')
-
         const { error } = await supabase.from("workouts").insert([
           {
             user_id: user.id,
-            workout_date: workoutDate,
+            workout_date: selectedDate.toISOString().split("T")[0],
             workout_type: workoutType,
             notes: notes.trim() || null,
             completed: true,
