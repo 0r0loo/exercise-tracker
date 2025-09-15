@@ -3,7 +3,9 @@ import { useAuth } from "@/hooks/useAuth";
 import Auth from "@/components/Auth";
 import Calendar from "@/components/Calendar";
 import PaymentModal from "@/components/PaymentModal";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import type { MembershipPayment } from "@/lib/supabase";
 
 export const Route = createFileRoute("/")({
 	component: App,
@@ -13,6 +15,32 @@ function App() {
 	const { user, loading, signOut } = useAuth();
 	const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 	const [refreshCalendar, setRefreshCalendar] = useState(0);
+	const [allPayments, setAllPayments] = useState<MembershipPayment[]>([]);
+
+	// 모든 회비 기록 가져오기
+	const fetchAllPayments = async () => {
+		if (!user) return;
+
+		try {
+			const { data, error } = await supabase
+				.from('membership_payments')
+				.select('*')
+				.eq('user_id', user.id)
+				.order('payment_date', { ascending: false });
+
+			if (error) throw error;
+			setAllPayments(data || []);
+		} catch (error) {
+			console.error('회비 기록 불러오기 실패:', error);
+		}
+	};
+
+	// 사용자가 로그인했을 때 회비 기록 불러오기
+	useEffect(() => {
+		if (user) {
+			fetchAllPayments();
+		}
+	}, [user]);
 
 	if (loading) {
 		return (
@@ -77,7 +105,9 @@ function App() {
 						onClose={() => setIsPaymentModalOpen(false)}
 						onPaymentAdded={() => {
 							setRefreshCalendar(prev => prev + 1)
+							fetchAllPayments()
 						}}
+						existingPayments={allPayments}
 					/>
 				</div>
 			</main>
