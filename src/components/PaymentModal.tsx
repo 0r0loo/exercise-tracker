@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import { paymentCycles } from '@/lib/supabase'
+import { paymentCycles, paymentTypes } from '@/lib/supabase'
 
 interface PaymentModalProps {
 	isOpen: boolean
@@ -15,10 +15,11 @@ export default function PaymentModal({ isOpen, onClose, onPaymentAdded }: Paymen
 	const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0])
 	const [amount, setAmount] = useState('')
 	const [selectedCycle, setSelectedCycle] = useState(paymentCycles[3]) // 기본값: 1개월
+	const [paymentType, setPaymentType] = useState(paymentTypes[0]) // 기본값: 헬스장
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
-		if (!user || !paymentDate || !amount || !selectedCycle) return
+		if (!user || !paymentDate || !amount || !selectedCycle || !paymentType) return
 
 		setLoading(true)
 		try {
@@ -30,7 +31,8 @@ export default function PaymentModal({ isOpen, onClose, onPaymentAdded }: Paymen
 						payment_date: paymentDate,
 						amount: parseFloat(amount),
 						payment_cycle_type: selectedCycle.type,
-						payment_cycle_value: selectedCycle.value
+						payment_cycle_value: selectedCycle.value,
+						payment_type: paymentType
 					}
 				])
 
@@ -40,6 +42,7 @@ export default function PaymentModal({ isOpen, onClose, onPaymentAdded }: Paymen
 			setPaymentDate(new Date().toISOString().split('T')[0])
 			setAmount('')
 			setSelectedCycle(paymentCycles[3])
+			setPaymentType(paymentTypes[0])
 			onPaymentAdded()
 			onClose()
 		} catch (error) {
@@ -100,6 +103,24 @@ export default function PaymentModal({ isOpen, onClose, onPaymentAdded }: Paymen
 							/>
 							<span className="absolute right-3 top-2 text-gray-500">원</span>
 						</div>
+					</div>
+
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							회비 종류 *
+						</label>
+						<select
+							value={paymentType}
+							onChange={(e) => setPaymentType(e.target.value)}
+							required
+							className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						>
+							{paymentTypes.map((type) => (
+								<option key={type} value={type}>
+									{type}
+								</option>
+							))}
+						</select>
 					</div>
 
 					<div>

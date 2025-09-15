@@ -28,6 +28,7 @@ export interface MembershipPayment {
   payment_cycle_type: "days" | "weeks" | "months";
   payment_cycle_value: number;
   next_payment_date: string;
+  payment_type: string; // 회비 종류 (예: 헬스장, 주짓수, 수영장 등)
   created_at: string;
 }
 
@@ -40,4 +41,18 @@ export const paymentCycles = [
   { type: "months" as const, value: 3, label: "3개월" },
   { type: "months" as const, value: 6, label: "6개월" },
   { type: "months" as const, value: 12, label: "1년" },
+];
+
+// 회비 종류 옵션
+export const paymentTypes = [
+  "헬스장",
+  "주짓수 도장",
+  "수영장",
+  "요가 스튜디오",
+  "필라테스",
+  "클라이밍짐",
+  "복싱짐",
+  "테니스장",
+  "골프장",
+  "기타",
 ];

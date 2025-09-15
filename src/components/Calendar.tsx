@@ -82,7 +82,7 @@ export default function Calendar() {
 		}
 	}
 
-	// 회비 결제 정보 불러오기
+	// 회비 결제 정보 불러오기 (해당 월의 결제일과 다음 결제 예정일 모두)
 	const fetchPayments = async () => {
 		if (!user) return
 
@@ -91,12 +91,23 @@ export default function Calendar() {
 				.from('membership_payments')
 				.select('*')
 				.eq('user_id', user.id)
-				.gte('next_payment_date', firstDayOfMonth.toISOString().split('T')[0])
-				.lte('next_payment_date', lastDayOfMonth.toISOString().split('T')[0])
-				.order('next_payment_date', { ascending: true })
+				.order('payment_date', { ascending: true })
 
 			if (error) throw error
-			setPayments(data || [])
+
+			// 현재 월에 해당하는 결제 정보들만 필터링
+			const monthStart = firstDayOfMonth.toISOString().split('T')[0]
+			const monthEnd = lastDayOfMonth.toISOString().split('T')[0]
+
+			const filteredPayments = (data || []).filter(payment => {
+				const paymentDate = payment.payment_date
+				const nextPaymentDate = payment.next_payment_date
+
+				return (paymentDate >= monthStart && paymentDate <= monthEnd) ||
+					   (nextPaymentDate >= monthStart && nextPaymentDate <= monthEnd)
+			})
+
+			setPayments(filteredPayments)
 		} catch (error) {
 			console.error('회비 정보 불러오기 실패:', error)
 		}
@@ -108,8 +119,23 @@ export default function Calendar() {
 		return workouts.filter(workout => workout.workout_date === dateString)
 	}
 
-	// 특정 날짜에 회비 결제일이 있는지 확인
+	// 특정 날짜에 회비 관련 정보가 있는지 확인 (결제일 또는 다음 결제 예정일)
 	const getPaymentsForDate = (date: Date) => {
+		const dateString = date.toISOString().split('T')[0]
+		return payments.filter(payment =>
+			payment.payment_date === dateString ||
+			payment.next_payment_date === dateString
+		)
+	}
+
+	// 특정 날짜의 실제 결제 기록만 가져오기
+	const getPaidPaymentsForDate = (date: Date) => {
+		const dateString = date.toISOString().split('T')[0]
+		return payments.filter(payment => payment.payment_date === dateString)
+	}
+
+	// 특정 날짜의 결제 예정일만 가져오기
+	const getDuePaymentsForDate = (date: Date) => {
 		const dateString = date.toISOString().split('T')[0]
 		return payments.filter(payment => payment.next_payment_date === dateString)
 	}
@@ -253,23 +279,56 @@ export default function Calendar() {
 									</div>
 								)}
 
-								{/* 회비 결제일 표시 */}
+								{/* 회비 관련 정보 표시 */}
 								{hasPayments && (
-									<div className="flex flex-wrap gap-1">
-										{dayPayments.map((payment, idx) => (
-											<span
-												key={idx}
-												className={`
-													px-1 py-0.5 rounded text-xs font-medium
-													${isToday(date)
-														? 'bg-white/20 text-white'
-														: 'bg-yellow-100 text-yellow-800'
-													}
-												`}
-											>
-												💰 회비
-											</span>
-										))}
+									<div className="flex flex-col gap-0.5">
+										{dayPayments.map((payment, idx) => {
+											const dateString = date.toISOString().split('T')[0]
+											const isPaid = payment.payment_date === dateString
+											const isDue = payment.next_payment_date === dateString
+
+											return (
+												<div
+													key={idx}
+													className={`
+														px-1.5 py-0.5 rounded text-xs
+														${isPaid
+															? isToday(date)
+																? 'bg-green-600/20 text-white border border-green-400/30'
+																: 'bg-green-100 text-green-800 border border-green-200'
+															: isDue
+															? isToday(date)
+																? 'bg-yellow-600/20 text-white border border-yellow-400/30'
+																: 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+															: 'bg-gray-100 text-gray-600'
+														}
+													`}
+												>
+													<div className="font-medium truncate">
+														{isPaid && '✓ '}
+														{isDue && '📅 '}
+														{payment.payment_type}
+													</div>
+													{payment.amount && (
+														<div className={`
+															text-xs mt-0.5 truncate
+															${isPaid
+																? isToday(date)
+																	? 'text-green-200'
+																	: 'text-green-600'
+																: isDue
+																? isToday(date)
+																	? 'text-yellow-200'
+																	: 'text-yellow-600'
+																: 'text-gray-500'
+															}
+														`}>
+															{payment.amount.toLocaleString()}원
+														</div>
+													)}
+												</div>
+											)
+										})}
 									</div>
 								)}
 							</div>
