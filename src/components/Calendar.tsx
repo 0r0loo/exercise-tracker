@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
-import type { Workout } from '@/lib/supabase'
+import type { Workout, MembershipPayment } from '@/lib/supabase'
 import WorkoutModal from './WorkoutModal'
 
 export default function Calendar() {
@@ -10,6 +10,7 @@ export default function Calendar() {
 	const [isModalOpen, setIsModalOpen] = useState(false)
 	const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 	const [workouts, setWorkouts] = useState<Workout[]>([])
+	const [payments, setPayments] = useState<MembershipPayment[]>([])
 
 	// 현재 월의 첫 번째 날과 마지막 날
 	const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
@@ -81,10 +82,36 @@ export default function Calendar() {
 		}
 	}
 
+	// 회비 결제 정보 불러오기
+	const fetchPayments = async () => {
+		if (!user) return
+
+		try {
+			const { data, error } = await supabase
+				.from('membership_payments')
+				.select('*')
+				.eq('user_id', user.id)
+				.gte('next_payment_date', firstDayOfMonth.toISOString().split('T')[0])
+				.lte('next_payment_date', lastDayOfMonth.toISOString().split('T')[0])
+				.order('next_payment_date', { ascending: true })
+
+			if (error) throw error
+			setPayments(data || [])
+		} catch (error) {
+			console.error('회비 정보 불러오기 실패:', error)
+		}
+	}
+
 	// 특정 날짜에 운동 기록이 있는지 확인
 	const getWorkoutsForDate = (date: Date) => {
 		const dateString = date.toISOString().split('T')[0]
 		return workouts.filter(workout => workout.workout_date === dateString)
+	}
+
+	// 특정 날짜에 회비 결제일이 있는지 확인
+	const getPaymentsForDate = (date: Date) => {
+		const dateString = date.toISOString().split('T')[0]
+		return payments.filter(payment => payment.next_payment_date === dateString)
 	}
 
 	// 운동 기록 추가 완료 후 호출
@@ -92,9 +119,15 @@ export default function Calendar() {
 		fetchWorkouts() // 운동 기록 새로고침
 	}
 
-	// 월이 변경되거나 사용자가 로그인할 때 운동 기록 불러오기
-	useEffect(() => {
+	// 데이터 새로고침 함수
+	const fetchAllData = () => {
 		fetchWorkouts()
+		fetchPayments()
+	}
+
+	// 월이 변경되거나 사용자가 로그인할 때 데이터 불러오기
+	useEffect(() => {
+		fetchAllData()
 	}, [user, currentDate])
 
 	return (
@@ -140,14 +173,16 @@ export default function Calendar() {
 			<div className="grid grid-cols-7 gap-1">
 				{calendarDays.map((date, index) => {
 					const dayWorkouts = getWorkoutsForDate(date)
+					const dayPayments = getPaymentsForDate(date)
 					const hasWorkouts = dayWorkouts.length > 0
+					const hasPayments = dayPayments.length > 0
 
 					return (
 						<div
 							key={index}
 							onClick={() => handleDateClick(date)}
 							className={`
-								p-1 h-16 flex flex-col items-center justify-start text-sm cursor-pointer rounded-md relative
+								p-1 h-20 flex flex-col items-center justify-start text-sm cursor-pointer rounded-md relative
 								${isCurrentMonth(date)
 									? 'text-gray-900 hover:bg-blue-50'
 									: 'text-gray-400 cursor-not-allowed'
@@ -160,40 +195,70 @@ export default function Calendar() {
 									? 'bg-green-50 border border-green-200'
 									: ''
 								}
+								${hasPayments && !isToday(date) && !hasWorkouts
+									? 'bg-yellow-50 border border-yellow-200'
+									: ''
+								}
+								${hasPayments && hasWorkouts && !isToday(date)
+									? 'bg-gradient-to-br from-green-50 to-yellow-50 border border-green-200'
+									: ''
+								}
 							`}
 						>
 							<span className="font-medium mb-1">{date.getDate()}</span>
 
-							{/* 운동 기록 표시 */}
-							{hasWorkouts && (
-								<div className="flex flex-wrap gap-1 text-xs">
-									{dayWorkouts.slice(0, 2).map((workout, idx) => (
-										<span
-											key={idx}
-											className={`
-												px-1 py-0.5 rounded text-xs font-medium
+							<div className="flex flex-col gap-1 text-xs w-full">
+								{/* 운동 기록 표시 */}
+								{hasWorkouts && (
+									<div className="flex flex-wrap gap-1">
+										{dayWorkouts.slice(0, 2).map((workout, idx) => (
+											<span
+												key={idx}
+												className={`
+													px-1 py-0.5 rounded text-xs font-medium
+													${isToday(date)
+														? 'bg-white/20 text-white'
+														: 'bg-green-100 text-green-800'
+													}
+												`}
+											>
+												{workout.workout_type.slice(0, 2)}
+											</span>
+										))}
+										{dayWorkouts.length > 2 && (
+											<span className={`
+												px-1 py-0.5 rounded text-xs
 												${isToday(date)
 													? 'bg-white/20 text-white'
-													: 'bg-green-100 text-green-800'
+													: 'bg-gray-100 text-gray-600'
 												}
-											`}
-										>
-											{workout.workout_type.slice(0, 2)}
-										</span>
-									))}
-									{dayWorkouts.length > 2 && (
-										<span className={`
-											px-1 py-0.5 rounded text-xs
-											${isToday(date)
-												? 'bg-white/20 text-white'
-												: 'bg-gray-100 text-gray-600'
-											}
-										`}>
-											+{dayWorkouts.length - 2}
-										</span>
-									)}
-								</div>
-							)}
+											`}>
+												+{dayWorkouts.length - 2}
+											</span>
+										)}
+									</div>
+								)}
+
+								{/* 회비 결제일 표시 */}
+								{hasPayments && (
+									<div className="flex flex-wrap gap-1">
+										{dayPayments.map((payment, idx) => (
+											<span
+												key={idx}
+												className={`
+													px-1 py-0.5 rounded text-xs font-medium
+													${isToday(date)
+														? 'bg-white/20 text-white'
+														: 'bg-yellow-100 text-yellow-800'
+													}
+												`}
+											>
+												💰 회비
+											</span>
+										))}
+									</div>
+								)}
+							</div>
 						</div>
 					)
 				})}

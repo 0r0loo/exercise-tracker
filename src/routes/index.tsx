@@ -12,6 +12,7 @@ export const Route = createFileRoute("/")({
 function App() {
 	const { user, loading, signOut } = useAuth();
 	const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+	const [refreshCalendar, setRefreshCalendar] = useState(0);
 
 	if (loading) {
 		return (
@@ -68,15 +69,14 @@ function App() {
 						</div>
 					</div>
 
-					<Calendar />
+					<Calendar key={refreshCalendar} />
 
 					{/* 회비 결제 모달 */}
 					<PaymentModal
 						isOpen={isPaymentModalOpen}
 						onClose={() => setIsPaymentModalOpen(false)}
 						onPaymentAdded={() => {
-							// 추후 회비 정보 새로고침 로직 추가
-							console.log('회비 결제 기록이 추가되었습니다!')
+							setRefreshCalendar(prev => prev + 1)
 						}}
 					/>
 				</div>
