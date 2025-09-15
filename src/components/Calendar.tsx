@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import WorkoutModal from './WorkoutModal'
 
 export default function Calendar() {
 	const [currentDate, setCurrentDate] = useState(new Date())
+	const [isModalOpen, setIsModalOpen] = useState(false)
+	const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
 	// 현재 월의 첫 번째 날과 마지막 날
 	const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
@@ -43,6 +46,20 @@ export default function Calendar() {
 	const isToday = (date: Date) => {
 		const today = new Date()
 		return date.toDateString() === today.toDateString()
+	}
+
+	// 날짜 클릭 핸들러
+	const handleDateClick = (date: Date) => {
+		if (isCurrentMonth(date)) {
+			setSelectedDate(date)
+			setIsModalOpen(true)
+		}
+	}
+
+	// 운동 기록 추가 완료 후 호출
+	const handleWorkoutAdded = () => {
+		// 추후 운동 기록 목록을 새로고침하는 로직 추가
+		console.log('운동 기록이 추가되었습니다!')
 	}
 
 	return (
@@ -89,11 +106,12 @@ export default function Calendar() {
 				{calendarDays.map((date, index) => (
 					<div
 						key={index}
+						onClick={() => handleDateClick(date)}
 						className={`
 							p-2 h-10 flex items-center justify-center text-sm cursor-pointer rounded-md
 							${isCurrentMonth(date)
 								? 'text-gray-900 hover:bg-blue-50'
-								: 'text-gray-400'
+								: 'text-gray-400 cursor-not-allowed'
 							}
 							${isToday(date)
 								? 'bg-blue-600 text-white hover:bg-blue-700'
@@ -105,6 +123,14 @@ export default function Calendar() {
 					</div>
 				))}
 			</div>
+
+			{/* 운동 기록 추가 모달 */}
+			<WorkoutModal
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				selectedDate={selectedDate}
+				onWorkoutAdded={handleWorkoutAdded}
+			/>
 		</div>
 	)
 }
