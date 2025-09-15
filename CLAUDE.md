@@ -50,6 +50,12 @@ src/
 - **Strict TypeScript**: Enabled with unused parameter/variable detection
 - **Biome formatting**: Uses tabs, double quotes, and organize imports
 
+### Tailwind CSS v4 Styling Rules
+- **Transparency**: Use `bg-black/50` instead of `bg-black bg-opacity-50`
+- **Color opacity**: Use `text-gray-900/75` instead of `text-gray-900 text-opacity-75`
+- **Border opacity**: Use `border-gray-300/50` instead of `border-gray-300 border-opacity-50`
+- **Shadow opacity**: Use `shadow-lg/25` instead of `shadow-lg shadow-opacity-25`
+
 ### Router Features Available
 - **Loaders**: Route-level data fetching before render
 - **Context**: Global router context for sharing state
