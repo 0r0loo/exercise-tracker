@@ -1,7 +1,11 @@
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
 import { useState, useEffect } from "react";
 import type { Workout } from "@/lib/supabase";
+import { format } from 'date-fns';
+import { useWorkouts } from "@/hooks/useWorkouts";
+import WorkoutModalWrapper from "./workout/WorkoutModalWrapper";
+import WorkoutList from "./workout/WorkoutList";
+import WorkoutForm from "./workout/WorkoutForm";
 
 interface WorkoutModalProps {
   isOpen: boolean;
@@ -19,92 +23,65 @@ export default function WorkoutModal({
   existingWorkouts = [],
 }: WorkoutModalProps) {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [workoutType, setWorkoutType] = useState("");
-  const [notes, setNotes] = useState("");
   const [editingWorkout, setEditingWorkout] = useState<Workout | null>(null);
   const [mode, setMode] = useState<"add" | "list">("list");
 
-  const workoutTypes = ["주짓수", "헬스", "러닝", "사이클링", "기타"];
+  // useWorkouts hook 사용 (단일 운동 기록 작업용)
+  const { loading, addWorkout, updateWorkout, deleteWorkout } = useWorkouts({
+    userId: user?.id,
+    monthRange: { start: '', end: '' } // 단일 작업에는 범위가 필요 없음
+  });
 
   // 모달이 열릴 때 모드 초기화
   useEffect(() => {
     if (isOpen) {
       setMode(existingWorkouts.length > 0 ? "list" : "add");
       setEditingWorkout(null);
-      setWorkoutType("");
-      setNotes("");
     }
   }, [isOpen, existingWorkouts.length]);
 
   // 수정 모드로 전환
   const handleEdit = (workout: Workout) => {
     setEditingWorkout(workout);
-    setWorkoutType(workout.workout_type);
-    setNotes(workout.notes || "");
     setMode("add");
   };
 
   // 운동 기록 삭제
   const handleDelete = async (workoutId: string) => {
-    if (!confirm("이 운동 기록을 삭제하시겠습니까?")) return;
-
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from("workouts")
-        .delete()
-        .eq("id", workoutId);
-
-      if (error) throw error;
-
+    const result = await deleteWorkout(workoutId);
+    if (result.success) {
       onWorkoutAdded();
       if (existingWorkouts.length <= 1) {
         onClose();
       }
-    } catch (error) {
-      console.error("운동 기록 삭제 실패:", error);
+    } else {
       alert("운동 기록 삭제에 실패했습니다.");
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !selectedDate || !workoutType) return;
+  // 폼 제출 처리
+  const handleFormSubmit = async (data: { workoutType: string; notes: string }) => {
+    if (!user || !selectedDate) return;
 
-    setLoading(true);
-    try {
-      if (editingWorkout) {
-        // 수정
-        const { error } = await supabase
-          .from("workouts")
-          .update({
-            workout_type: workoutType,
-            notes: notes.trim() || null,
-          })
-          .eq("id", editingWorkout.id);
+    let result;
+    if (editingWorkout) {
+      // 수정
+      result = await updateWorkout(editingWorkout.id, {
+        workout_type: data.workoutType,
+        notes: data.notes.trim() || undefined,
+      });
+    } else {
+      // 추가
+      result = await addWorkout({
+        user_id: user.id,
+        workout_date: format(selectedDate, 'yyyy-MM-dd'),
+        workout_type: data.workoutType,
+        notes: data.notes.trim() || undefined,
+        completed: true,
+      });
+    }
 
-        if (error) throw error;
-      } else {
-        // 추가
-        const { error } = await supabase.from("workouts").insert([
-          {
-            user_id: user.id,
-            workout_date: selectedDate.toISOString().split("T")[0],
-            workout_type: workoutType,
-            notes: notes.trim() || null,
-            completed: true,
-          },
-        ]);
-
-        if (error) throw error;
-      }
-
-      // 성공 시 폼 초기화 및 목록으로 돌아가기
-      setWorkoutType("");
-      setNotes("");
+    if (result.success) {
       setEditingWorkout(null);
       onWorkoutAdded();
 
@@ -113,185 +90,51 @@ export default function WorkoutModal({
       } else {
         setMode("list");
       }
-    } catch (error) {
-      console.error("운동 기록 저장 실패:", error);
+    } else {
       alert("운동 기록 저장에 실패했습니다.");
-    } finally {
-      setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  // 폼 취소 처리
+  const handleFormCancel = () => {
+    if (existingWorkouts.length > 0) {
+      setMode("list");
+    } else {
+      onClose();
+    }
+  };
+
+  const getTitle = () => {
+    if (mode === "list") return "운동 기록 관리";
+    if (editingWorkout) return "운동 기록 수정";
+    return "운동 기록 추가";
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">
-            {mode === "list"
-              ? "운동 기록 관리"
-              : editingWorkout
-              ? "운동 기록 수정"
-              : "운동 기록 추가"}
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <title>닫기</title>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-
-        {selectedDate && (
-          <p className="text-sm text-gray-600 mb-4">
-            날짜: {selectedDate.getFullYear()}년 {selectedDate.getMonth() + 1}월{" "}
-            {selectedDate.getDate()}일
-          </p>
-        )}
-
-        {mode === "list" ? (
-          // 운동 기록 목록 표시
-          <div className="space-y-4">
-            {existingWorkouts.map((workout) => (
-              <div
-                key={workout.id}
-                className="border border-gray-200 rounded-lg p-4"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-gray-900">
-                      {workout.workout_type}
-                    </h4>
-                    {workout.notes && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        {workout.notes}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex space-x-2 ml-3">
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(workout)}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                    >
-                      수정
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(workout.id)}
-                      disabled={loading}
-                      className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 disabled:opacity-50"
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            <div className="flex space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                닫기
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("add")}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                운동 추가
-              </button>
-            </div>
-          </div>
-        ) : (
-          // 운동 기록 추가/수정 폼
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label
-                htmlFor="workout-type"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                운동 종류 *
-              </label>
-              <select
-                id="workout-type"
-                value={workoutType}
-                onChange={(e) => setWorkoutType(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">운동을 선택하세요</option>
-                {workoutTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label
-                htmlFor="notes"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                메모 (선택사항)
-              </label>
-              <textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="운동 내용이나 느낀점을 적어보세요"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  if (existingWorkouts.length > 0) {
-                    setMode("list");
-                  } else {
-                    onClose();
-                  }
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              >
-                {existingWorkouts.length > 0 ? "돌아가기" : "취소"}
-              </button>
-              <button
-                type="submit"
-                disabled={loading || !workoutType}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading
-                  ? "저장 중..."
-                  : editingWorkout
-                  ? "수정"
-                  : "저장"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
+    <WorkoutModalWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      title={getTitle()}
+      selectedDate={selectedDate}
+    >
+      {mode === "list" ? (
+        <WorkoutList
+          workouts={existingWorkouts}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onAddNew={() => setMode("add")}
+          onClose={onClose}
+          isLoading={loading}
+        />
+      ) : (
+        <WorkoutForm
+          onSubmit={handleFormSubmit}
+          onCancel={handleFormCancel}
+          editingWorkout={editingWorkout}
+          isLoading={loading}
+          hasExistingWorkouts={existingWorkouts.length > 0}
+        />
+      )}
+    </WorkoutModalWrapper>
   );
 }
